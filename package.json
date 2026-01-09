@@ -1,31 +1,22 @@
 {
   "name": "parse-excel-file",
   "version": "1.0.0",
-  "description": "Azure Function to read and transform Excel files from SharePoint",
-  "main": "dist/index.js",
+  "description": "",
   "scripts": {
     "build": "tsc",
-    "watch": "tsc --watch",
+    "watch": "tsc -w",
     "clean": "rimraf dist",
-    "prestart": "npm run build",
+    "prestart": "npm run clean && npm run build",
     "start": "func start",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"No tests yet...\""
   },
-  "keywords": [
-    "azure-functions",
-    "excel",
-    "sharepoint",
-    "typescript"
-  ],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "@azure/functions": "^4.5.0",
-    "exceljs": "^4.4.0"
+    "@azure/functions": "^4.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.11.0",
-    "rimraf": "^5.0.5",
-    "typescript": "^5.3.3"
-  }
+    "@types/node": "^20.x",
+    "typescript": "^5.0.0",
+    "rimraf": "^5.0.0"
+  },
+  "main": "dist/src/{index.js,functions/*.js}"
 }
