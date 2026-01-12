@@ -3,6 +3,24 @@
         "parse-excel-file-local-server": {
             "type": "http",
             "url": "http://localhost:7071/runtime/webhooks/mcp"
+        },
+        "parse-excel-file-vs-remote-server": {
+            "type": "http",
+            "url": "https://parse-excel-file-vs.azurewebsites.net/runtime/webhooks/mcp",
+            "headers": {
+                "x-functions-key": "${input:parse-excel-file-vsMcpHostKey}"
+            }
         }
-    }
+    },
+    "inputs": [
+        {
+            "type": "command",
+            "id": "parse-excel-file-vsMcpHostKey",
+            "command": "azureFunctions.getMcpHostKey",
+            "args": {
+                "resourceId": "/subscriptions/7e534e00-acc8-44e4-8730-3b584af4cfb1/resourceGroups/parseexcelfilevs/providers/Microsoft.Web/sites/parse-excel-file-vs",
+                "projectType": "McpExtensionServer"
+            }
+        }
+    ]
 }

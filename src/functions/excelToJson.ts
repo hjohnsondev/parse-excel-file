@@ -1,21 +1,91 @@
-import { app, InvocationContext, arg } from "@azure/functions";
+import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions"; 
+import * as ExcelJS from 'exceljs';
+import { getFileFromGoogleDrive } from "../helpers/googleDrive";
 
-export async function mcpToolHello(_toolArguments: any, context: InvocationContext): Promise<string> {
-    const mcptoolargs = _toolArguments.arguments as {
-        name?: string;
-    };
-    const name = mcptoolargs?.name;
+export async function excelToJson(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+    const { fileName } = await request.json() as any;
 
-    console.info(`Hello ${name}, I am MCP Tool!`);
+    try {
+        const buffer = await getFileFromGoogleDrive(fileName);
 
-    return `Hello ${name}, I am MCP Tool!`;
+        // Parse with ExcelJS
+        const workbook = new ExcelJS.Workbook();
+        // @ts-ignore
+        await workbook.xlsx.load(buffer);
+
+        const worksheet = workbook.getWorksheet(1);
+        if (!worksheet) {
+            throw new Error('No worksheet found');
+        }
+
+        const headerMap: { [key: number]: string } = {}; 
+        const nullCells: any[] = [];
+        let isHeaderRow = true;
+
+        worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+            if (isHeaderRow) {
+                // Capture only columns that have header text
+                row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+                    headerMap[colNumber] = cell.value ? cell.value.toString() : `Column ${colNumber}`;
+                });
+                isHeaderRow = false;
+            } else {
+                const rowDataForContext: string[] = [];
+                const pendingNullsInRow: any[] = [];
+
+                // Single pass through the row to collect context and identify nulls
+                row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                    const header = headerMap[colNumber];
+                    if (!header) return; // Skip columns outside the header range
+
+                    const value = cell.value;
+
+                    if (value === null || value === undefined || value === "") {
+                        // Mark this as a target for the LLM
+                        pendingNullsInRow.push({
+                            address: cell.address,
+                            type: cell.type,
+                            header: header,
+                            value: null
+                        });
+                    } else {
+                        // Add to the context string for other cells in this row
+                        rowDataForContext.push(`${header}: ${value}`);
+                    }
+                });
+
+                // Create the final context string for this row
+                const rowContext = rowDataForContext.join(" || ");
+
+                // Attach the context to the null cells found in this specific row
+                pendingNullsInRow.forEach(nullItem => {
+                    nullCells.push({
+                        ...nullItem,
+                        rowContext: rowContext
+                    });
+                });
+            }
+        });
+
+        return {
+            status: 200,
+            jsonBody: {
+                totalGapsFound: nullCells.length,
+                missingData: nullCells
+            }
+        };
+    } catch (error: any) {
+        context.error(`Error: ${error.message}`);
+        return { 
+            status: 500, 
+            jsonBody: { success: false, error: error.message }
+        };
+    }
 }
 
-app.mcpTool('hello', {
-    toolName: 'hello',
-    description: 'Simple hello world MCP Tool that responses with a hello message.',
-    toolProperties: {
-      name: arg.string().describe('Name to greet'),
-    },
-    handler: mcpToolHello
+app.http('excelToJson', {
+    methods: ['POST'],
+    authLevel: 'anonymous',
+    handler: excelToJson
 });
+

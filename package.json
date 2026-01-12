@@ -11,12 +11,17 @@
     "test": "echo \"No tests yet...\""
   },
   "dependencies": {
-    "@azure/functions": "^4.0.0"
+    "@azure/functions": "^4.0.0",
+    "@azure/identity": "^4.13.0",
+    "@microsoft/microsoft-graph-client": "^3.0.7",
+    "exceljs": "^4.4.0",
+    "googleapis": "^170.0.0",
+    "multiparty": "^4.2.3"
   },
   "devDependencies": {
     "@types/node": "^20.x",
-    "typescript": "^5.0.0",
-    "rimraf": "^5.0.0"
+    "rimraf": "^5.0.0",
+    "typescript": "^5.0.0"
   },
   "main": "dist/src/{index.js,functions/*.js}"
 }
