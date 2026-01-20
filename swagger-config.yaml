@@ -1,0 +1,324 @@
+swagger: '2.0'
+info:
+  title: MCP Server API
+  description: Azure Functions MCP (Model Context Protocol) Server with hello tool
+  version: 1.0.0
+host: parse-excel-file-vs.azurewebsites.net
+basePath: /
+schemes:
+  - https
+consumes: []
+produces: []
+paths:
+  /runtime/webhooks/mcp:
+    post:
+      summary: MCP Protocol Endpoint
+      description: Main endpoint for MCP protocol communication
+      operationId: mcpEndpoint
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: header
+          name: Accept
+          required: true
+          type: string
+          default: application/json, text/event-stream
+          description: Must accept both application/json and text/event-stream
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            properties:
+              jsonrpc:
+                type: string
+                enum:
+                  - '2.0'
+              id:
+                type: string
+              method:
+                type: string
+                enum:
+                  - tools/list
+                  - tools/call
+                  - initialize
+              params:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    description: The name of the tool to call (e.g. 'hello')
+                  arguments:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        description: Name to greet
+                  _meta:
+                    type: object
+                    properties:
+                      progressToken:
+                        type: integer
+                        description: Progress tracking token
+          x-examples:
+            listTools:
+              summary: List available tools
+              value:
+                jsonrpc: '2.0'
+                id: 1
+                method: tools/list
+            callHelloTool:
+              summary: Call hello tool
+              value:
+                jsonrpc: '2.0'
+                id: 2
+                method: tools/call
+                params:
+                  name: hello
+                  arguments:
+                    name: World
+      responses:
+        '200':
+          description: Successful response
+          schema:
+            type: object
+            properties:
+              jsonrpc:
+                type: string
+                enum:
+                  - '2.0'
+              id:
+                type: string
+              result:
+                type: object
+          x-examples:
+            listToolsResponse:
+              summary: List of available tools
+              value:
+                jsonrpc: '2.0'
+                id: 1
+                result:
+                  tools:
+                    - name: hello
+                      description: >-
+                        Simple hello world MCP Tool that responses with a hello
+                        message.
+                      inputSchema:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                            description: Name to greet
+            callToolResponse:
+              summary: Result from calling hello tool
+              value:
+                jsonrpc: '2.0'
+                id: 2
+                result:
+                  content:
+                    - type: text
+                      text: Hello World, I am MCP Tool!
+        '400':
+          description: Bad request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '401':
+          description: Unauthorized - missing or invalid function key
+        '500':
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+        - api_key: []
+definitions:
+  InitializeRequest:
+    required:
+      - jsonrpc
+      - id
+      - method
+      - params
+    type: object
+    properties:
+      jsonrpc:
+        enum:
+          - '2.0'
+        type: string
+      id:
+        type: string
+      method:
+        enum:
+          - initialize
+        type: string
+      params:
+        type: object
+        properties:
+          protocolVersion:
+            type: string
+          capabilities:
+            type: object
+          clientInfo:
+            type: object
+  InitializeResponse:
+    type: object
+    properties:
+      jsonrpc:
+        enum:
+          - '2.0'
+        type: string
+      id:
+        type: string
+      result:
+        type: object
+        properties:
+          protocolVersion:
+            type: string
+          capabilities:
+            type: object
+          serverInfo:
+            type: object
+  ListToolsRequest:
+    required:
+      - jsonrpc
+      - id
+      - method
+    type: object
+    properties:
+      jsonrpc:
+        enum:
+          - '2.0'
+        type: string
+      id:
+        type: string
+      method:
+        enum:
+          - tools/list
+        type: string
+  ListToolsResponse:
+    type: object
+    properties:
+      jsonrpc:
+        enum:
+          - '2.0'
+        type: string
+      id:
+        type: string
+      result:
+        type: object
+        properties:
+          tools:
+            type: array
+            items:
+              $ref: '#/definitions/Tool'
+  Tool:
+    type: object
+    properties:
+      name:
+        type: string
+        example: hello
+      description:
+        type: string
+        example: Simple hello world MCP Tool that responses with a hello message.
+      inputSchema:
+        type: object
+        properties:
+          type:
+            enum:
+              - object
+            type: string
+          properties:
+            type: object
+  CallToolRequest:
+    required:
+      - jsonrpc
+      - id
+      - method
+      - params
+    type: object
+    properties:
+      jsonrpc:
+        enum:
+          - '2.0'
+        type: string
+      id:
+        type: string
+      method:
+        enum:
+          - tools/call
+        type: string
+      params:
+        required:
+          - name
+        type: object
+        properties:
+          name:
+            description: The name of the tool to call
+            type: string
+            example: hello
+          arguments:
+            description: Arguments to pass to the tool
+            type: object
+            properties:
+              name:
+                description: Name to greet
+                type: string
+                example: World
+          _meta:
+            description: Optional metadata
+            type: object
+            properties:
+              progressToken:
+                type: integer
+  CallToolResponse:
+    type: object
+    properties:
+      jsonrpc:
+        enum:
+          - '2.0'
+        type: string
+      id:
+        type: string
+      result:
+        type: object
+        properties:
+          content:
+            type: array
+            items:
+              type: object
+              properties:
+                type:
+                  enum:
+                    - text
+                  type: string
+                text:
+                  type: string
+                  example: Hello World, I am MCP Tool!
+  ErrorResponse:
+    type: object
+    properties:
+      jsonrpc:
+        enum:
+          - '2.0'
+        type: string
+      id:
+        type: string
+      error:
+        type: object
+        properties:
+          code:
+            type: integer
+          message:
+            type: string
+          data:
+            type: object
+parameters: {}
+responses: {}
+securityDefinitions:
+  api_key:
+    type: apiKey
+    in: header
+    name: x-functions-key
+security:
+  - api_key: []
+tags: []
